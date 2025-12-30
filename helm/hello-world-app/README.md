@@ -22,9 +22,9 @@ This Helm chart is **automatically deployed** by the GitHub Actions CI/CD pipeli
 
 ### Trigger
 
-Push to `main` branch triggers automatic deployment:
+Push to `master` branch triggers automatic deployment:
 ```bash
-git push origin main
+git push origin master
 ```
 
 ### Monitor Deployment

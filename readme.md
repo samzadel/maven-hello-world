@@ -140,12 +140,12 @@ Add these secrets to your GitHub repository:
 
 Edit `helm/hello-world-app/values.yaml` and replace `your-dockerhub-username` with your actual Docker Hub username.
 
-### 3. Push to Main
+### 3. Push to Master
 
 ```bash
 git add .
 git commit -m "feat: initial setup"
-git push origin main
+git push origin master
 ```
 
 The CI/CD pipeline will automatically:
