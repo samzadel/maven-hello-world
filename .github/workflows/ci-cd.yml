@@ -1,0 +1,172 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  APP_NAME: hello-world-app
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Increment patch version
+      id: version
+      run: |
+        cd myapp
+        CURRENT_VERSION=$(grep -oPm1 "(?<=<version>)[^<]+" pom.xml)
+        echo "Current version: $CURRENT_VERSION"
+        
+        MAJOR=$(echo $CURRENT_VERSION | cut -d. -f1)
+        MINOR=$(echo $CURRENT_VERSION | cut -d. -f2)
+        PATCH=$(echo $CURRENT_VERSION | cut -d. -f3)
+        
+        NEW_PATCH=$((PATCH + 1))
+        NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+        echo "New version: $NEW_VERSION"
+        
+        sed -i "0,/<version>$CURRENT_VERSION<\/version>/s//<version>$NEW_VERSION<\/version>/" pom.xml
+        
+        echo "VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+    - name: Setup Java
+      uses: actions/setup-java@v5
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        cache: 'maven'
+
+    - name: Compile and package
+      run: |
+        cd myapp
+        mvn clean package
+
+    - name: Upload JAR artifact
+      uses: actions/upload-artifact@v6
+      with:
+        name: myapp-${{ env.VERSION }}
+        path: myapp/target/*.jar
+        retention-days: 1
+
+    - name: Build Docker image
+      run: |
+        docker build -t ${{ env.DOCKER_USERNAME }}/${{ env.APP_NAME }}:${{ env.VERSION }} .
+
+    - name: Save Docker image
+      run: |
+        docker save ${{ env.DOCKER_USERNAME }}/${{ env.APP_NAME }}:${{ env.VERSION }} | gzip > docker-image.tar.gz
+
+    - name: Upload Docker image artifact
+      uses: actions/upload-artifact@v6
+      with:
+        name: docker-image-${{ env.VERSION }}
+        path: docker-image.tar.gz
+        retention-days: 1
+
+  docker-deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ needs.build.outputs.version }}
+    steps:
+    - name: Download Docker image artifact
+      uses: actions/download-artifact@v6
+      with:
+        name: docker-image-${{ needs.build.outputs.version }}
+
+    - name: Load Docker image
+      run: |
+        gunzip -c docker-image.tar.gz | docker load
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ env.DOCKER_USERNAME }}
+        password: ${{ env.DOCKER_PASSWORD }}
+
+    - name: Push Docker image to Docker Hub
+      run: |
+        docker push ${{ env.DOCKER_USERNAME }}/${{ env.APP_NAME }}:${{ needs.build.outputs.version }}
+
+    - name: Pull and run Docker image
+      run: |
+        docker pull ${{ env.DOCKER_USERNAME }}/${{ env.APP_NAME }}:${{ needs.build.outputs.version }}
+        docker run --name test-container ${{ env.DOCKER_USERNAME }}/${{ env.APP_NAME }}:${{ needs.build.outputs.version }}
+        docker rm test-container
+
+  helm-deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: 'latest'
+
+    - name: Create kind cluster
+      uses: helm/kind-action@v1
+      with:
+        cluster_name: test-cluster
+        wait: 60s
+
+    - name: Update Helm values with correct image
+      run: |
+        sed -i "s|repository:.*|repository: ${{ env.DOCKER_USERNAME }}/${{ env.APP_NAME }}|g" ./helm/${{ env.APP_NAME }}/values.yaml
+        sed -i "s|tag:.*|tag: \"${{ needs.build.outputs.version }}\"|g" ./helm/${{ env.APP_NAME }}/values.yaml
+        cat ./helm/${{ env.APP_NAME }}/values.yaml
+
+    - name: Validate Helm chart
+      run: |
+        helm lint ./helm/${{ env.APP_NAME }}
+        echo "✅ Helm chart validation successful"
+
+    - name: Deploy Helm chart
+      run: |
+        helm install hello-world ./helm/${{ env.APP_NAME }} --wait --timeout 5m
+        echo "✅ Helm chart deployed successfully"
+
+    - name: Verify deployment
+      run: |
+        echo "Checking pods status..."
+        kubectl get pods
+        
+        echo "Waiting for pods to be ready..."
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=${{ env.APP_NAME }} --timeout=120s
+        
+        echo "✅ All pods are running successfully!"
+
+    - name: Check application logs
+      run: |
+        echo "Application logs:"
+        kubectl logs -l app.kubernetes.io/name=${{ env.APP_NAME }} --tail=50
+        echo "✅ Application is running correctly!"
+
+    - name: Final success message
+      run: |
+        echo "============================================"
+        echo "✅ DEPLOYMENT SUCCESSFUL!"
+        echo "============================================"
+        echo "Helm chart: hello-world"
+        echo "Version: ${{ needs.build.outputs.version }}"
+        echo "Image: ${{ env.DOCKER_USERNAME }}/${{ env.APP_NAME }}:${{ needs.build.outputs.version }}"
+        echo "Namespace: default"
+        echo "All pods are running and healthy!"
+        echo "============================================"
+
+    - name: Cleanup
+      if: always()
+      run: |
+        helm uninstall hello-world || true
+        kind delete cluster --name test-cluster || true

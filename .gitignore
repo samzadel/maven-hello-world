@@ -20,4 +20,5 @@ target/
 /.mvn
 /.maven
 /.repository
+.m2/
 .flattened-pom.xml

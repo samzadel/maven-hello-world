@@ -1,0 +1,36 @@
+# Number of pod replicas
+replicaCount: 1
+
+# Docker image configuration
+image:
+  repository: your-docker-username/hello-world-app  # Replace with your Docker Hub username
+  pullPolicy: IfNotPresent
+  tag: "1.0.1"  # Image tag version
+
+# Kubernetes service configuration
+service:
+  type: ClusterIP
+  port: 8080
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Horizontal Pod Autoscaler configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+
+# Security context - runs as non-root user
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+

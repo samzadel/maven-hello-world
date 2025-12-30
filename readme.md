@@ -1,147 +1,194 @@
-# A simple, minimal Maven example: hello world
+# Maven Hello World - CI/CD Project
 
-To create the files in this git repo we've already run `mvn archetype:generate` from http://maven.apache.org/guides/getting-started/maven-in-five-minutes.html
-    
-    mvn archetype:generate -DgroupId=com.myapp.app -DartifactId=myapp -DarchetypeArtifactId=maven-archetype-quickstart -DarchetypeVersion=1.4 -DinteractiveMode=false
+A Maven-based Java application with automated CI/CD pipeline, Docker containerization, and Kubernetes deployment using Helm.
 
-Now, to print "Hello World!", type either...
-
-    cd myapp
-    mvn compile
-    java -cp target/classes com.myapp.app.App
-
-or...
-
-    cd myapp
-    mvn package
-    java -cp target/myapp-1.0-SNAPSHOT.jar com.myapp.app.App
-
-Running `mvn clean` will get us back to only the source Java and the `pom.xml`:
-
-    murphy:myapp pdurbin$ mvn clean --quiet
-    murphy:myapp pdurbin$ ack -a -f
-    pom.xml
-    src/main/java/com/myapp/app/App.java
-    src/test/java/com/myapp/app/AppTest.java
-
-Running `mvn compile` produces a class file:
-
-    murphy:myapp pdurbin$ mvn compile --quiet
-    murphy:myapp pdurbin$ ack -a -f
-    pom.xml
-    src/main/java/com/myapp/app/App.java
-    src/test/java/com/myapp/app/AppTest.java
-    target/classes/com/myapp/app/App.class
-    murphy:myapp pdurbin$ 
-    murphy:myapp pdurbin$ java -cp target/classes com.myapp.app.App
-    Hello World!
-
-Running `mvn package` does a compile and creates the target directory, including a jar:
-
-    murphy:myapp pdurbin$ mvn clean --quiet
-    murphy:myapp pdurbin$ mvn package > /dev/null
-    murphy:myapp pdurbin$ ack -a -f
-    pom.xml
-    src/main/java/com/myapp/app/App.java
-    src/test/java/com/myapp/app/AppTest.java
-    target/classes/com/myapp/app/App.class
-    target/maven-archiver/pom.properties
-    target/myapp-1.0-SNAPSHOT.jar
-    target/surefire-reports/com.myapp.app.AppTest.txt
-    target/surefire-reports/TEST-com.myapp.app.AppTest.xml
-    target/test-classes/com/myapp/app/AppTest.class
-    murphy:myapp pdurbin$ 
-    murphy:myapp pdurbin$ java -cp target/myapp-1.0-SNAPSHOT.jar com.myapp.app.App
-    Hello World!
-
-Running `mvn clean compile exec:java` requires https://www.mojohaus.org/exec-maven-plugin/
-
-Running `java -jar target/myapp-1.0-SNAPSHOT.jar` requires http://maven.apache.org/plugins/maven-shade-plugin/
-
-# Runnable Jar:
-JAR Plugin
-The Maven’s jar plugin will create jar file and we need to define the main class that will get executed when we run the jar file.
-```
-<plugin>
-  <artifactId>maven-jar-plugin</artifactId>
-  <version>3.0.2</version>
-  <configuration>
-    <archive>
-      <manifest>
-        <addClasspath>true</addClasspath>
-        <mainClass>com.myapp.App</mainClass>
-      </manifest>
-    </archive>
-  </configuration>
-</plugin>
-```
-
-
-# Folder tree before package:
-```
-├── pom.xml
-└── src
-    ├── main
-    │   └── java
-    │       └── com
-    │           └── myapp
-    │               └── app
-    │                   └── App.java
-    └── test
-        └── java
-            └── com
-                └── myapp
-                    └── app
-                        └── AppTest.java
+## Project Structure
 
 ```
-# Folder tree after package:
+maven-hello-world/
+├── .github/
+│   └── workflows/
+│       └── ci-cd.yml           # CI/CD pipeline configuration
+├── helm/
+│   └── hello-world-app/        # Helm chart for Kubernetes deployment
+│       ├── Chart.yaml          # Chart metadata
+│       ├── values.yaml         # Default configuration values
+│       └── templates/          # Kubernetes resource templates
+├── myapp/
+│   ├── pom.xml                 # Maven configuration
+│   └── src/
+│       ├── main/java/          # Application source code
+│       └── test/java/          # Unit tests
+├── Dockerfile                  # Multi-stage Docker build configuration
+├── .gitignore                  # Git ignore patterns
+└── README.md                   # This file
 ```
 
-.
-├── pom.xml
-├── src
-│   ├── main
-│   │   └── java
-│   │       └── com
-│   │           └── myapp
-│   │               └── app
-│   │                   └── App.java
-│   └── test
-│       └── java
-│           └── com
-│               └── myapp
-│                   └── app
-│                       └── AppTest.java
-└── target
-    ├── classes
-    │   └── com
-    │       └── myapp
-    │           └── app
-    │               └── App.class
-    ├── generated-sources
-    │   └── annotations
-    ├── generated-test-sources
-    │   └── test-annotations
-    ├── maven-archiver
-    │   └── pom.properties
-    ├── maven-status
-    │   └── maven-compiler-plugin
-    │       ├── compile
-    │       │   └── default-compile
-    │       │       ├── createdFiles.lst
-    │       │       └── inputFiles.lst
-    │       └── testCompile
-    │           └── default-testCompile
-    │               ├── createdFiles.lst
-    │               └── inputFiles.lst
-    ├── myapp-1.0-SNAPSHOT.jar
-    ├── surefire-reports
-    │   ├── com.myapp.app.AppTest.txt
-    │   └── TEST-com.myapp.app.AppTest.xml
-    └── test-classes
-        └── com
-            └── myapp
-                └── app
-                    └── AppTest.class
+## Technology Stack
+
+- **Language**: Java 17
+- **Build Tool**: Maven 3.9
+- **Containerization**: Docker (Alpine-based images)
+- **Orchestration**: Kubernetes with Helm
+- **CI/CD**: GitHub Actions
+- **Registry**: Docker Hub
+
+## Local Development
+
+### Build and Run with Docker
+
+```bash
+# Build Docker image
+docker build -t hello-world-app:1.0.0 .
+
+# Run container
+docker run hello-world-app:1.0.0
 ```
+
+## Dockerfile Explanation
+
+Multi-stage Docker build for optimized image size and security:
+
+### Stage 1: Builder
+```dockerfile
+FROM maven:3.9-eclipse-temurin-17-alpine AS builder
+```
+- Uses Alpine-based Maven image (lightweight)
+- Copies `pom.xml` first for dependency caching
+- Downloads dependencies with `mvn dependency:go-offline`
+- Copies source code and builds with `mvn clean package`
+- Runs tests automatically during build
+
+### Stage 2: Runtime
+```dockerfile
+FROM eclipse-temurin:17-jre-alpine
+```
+- Uses JRE-only Alpine image
+- Creates non-root user `appuser` for security
+- Copies only the JAR file from builder stage
+- Runs as non-root user (`USER appuser`)
+- Exposes port 8080
+
+**Security**: Application runs as non-root user, following security best practices.
+
+## CI/CD Pipeline
+
+GitHub Actions workflow (`.github/workflows/ci-cd.yml`) with 3 jobs:
+
+### Job 1: Build
+1. **Increment Version**: Automatically increments patch version (1.0.0 → 1.0.1)
+2. **Compile**: Builds Java code with Maven
+3. **Test**: Runs unit tests
+4. **Package**: Creates JAR artifact
+5. **Docker Build**: Creates Docker image
+6. **Upload Artifacts**: Saves JAR and Docker image
+
+### Job 2: Docker Deploy
+1. **Load Image**: Retrieves Docker image from artifacts
+2. **Login**: Authenticates to Docker Hub
+3. **Push**: Pushes image to Docker Hub with version tag
+4. **Test**: Pulls and runs image to verify
+
+### Job 3: Helm Deploy
+1. **Create Cluster**: Spins up local Kubernetes cluster (kind)
+2. **Validate**: Lints Helm chart for errors
+3. **Deploy**: Installs Helm chart in cluster
+4. **Verify**: Checks pod health and readiness
+5. **Test**: Views logs to confirm successful deployment
+6. **Cleanup**: Removes cluster and resources
+
+**Triggers**: Pipeline runs automatically on push to `main` branch.
+
+## Helm Deployment
+
+Deploy to Kubernetes using Helm:
+
+```bash
+# Install the chart
+helm install hello-world ./helm/hello-world-app
+
+# Check deployment status
+kubectl get pods
+kubectl logs -l app.kubernetes.io/name=hello-world-app
+
+# Uninstall
+helm uninstall hello-world
+```
+
+### Helm Configuration
+
+Edit `helm/hello-world-app/values.yaml`:
+```yaml
+image:
+  repository: your-dockerhub-username/hello-world-app
+  tag: "1.0.1"
+replicaCount: 1
+service:
+  type: ClusterIP
+  port: 8080
+```
+
+## Setup Instructions
+
+### 1. Configure GitHub Secrets
+
+Add these secrets to your GitHub repository:
+- `DOCKER_USERNAME`: Your Docker Hub username
+- `DOCKER_PASSWORD`: Docker Hub access token (not password)
+
+### 2. Update Helm Values
+
+Edit `helm/hello-world-app/values.yaml` and replace `your-dockerhub-username` with your actual Docker Hub username.
+
+### 3. Push to Main
+
+```bash
+git add .
+git commit -m "feat: initial setup"
+git push origin main
+```
+
+The CI/CD pipeline will automatically:
+- Build and test your application
+- Create and push Docker image
+- Deploy to Kubernetes
+- Verify deployment success
+
+## Environment Variables
+
+Pipeline uses these environment variables:
+- `APP_NAME`: Application and image name (hello-world-app)
+- `DOCKER_USERNAME`: Docker Hub username (from secrets)
+- `DOCKER_PASSWORD`: Docker Hub token (from secrets)
+
+## Version Management
+
+Versions are automatically incremented on each push:
+- Format: `MAJOR.MINOR.PATCH` (semantic versioning)
+- Increment: Patch version is auto-incremented
+- Tagging: Docker images are tagged with the version number
+
+Example: `1.0.0` → `1.0.1` → `1.0.2`
+
+## Monitoring and Logs
+
+```bash
+# View pipeline execution
+# Go to GitHub → Actions tab
+
+# View application logs (if deployed)
+kubectl logs -l app.kubernetes.io/name=hello-world-app
+
+# Check pod status
+kubectl get pods
+kubectl describe pod <pod-name>
+```
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Pipeline fails at build | Check Maven dependencies in `pom.xml` |
+| Docker push fails | Verify Docker Hub credentials in GitHub Secrets |
+| Helm deployment fails | Run `helm lint ./helm/hello-world-app` locally |
+| Pods not starting | Check image exists: `docker pull username/hello-world-app:version` |
